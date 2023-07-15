@@ -1,0 +1,227 @@
+openapi: 3.0.1
+info:
+  title: Sample API
+  description: API description in Markdown.
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/
+paths:
+  /sample:
+    post:
+      summary: サンプル用のLambda
+      description: サンプル用のLambda
+      requestBody:
+        description: 変更内容
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SampleRequest'
+        required: true
+      responses:
+        200:
+          description: 指定したグループまたはその親グループに適用されている除外設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SampleResponse'
+      x-amazon-apigateway-integration:
+        httpMethod: post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SampleApiLambda.Arn}/invocations
+  /devices:
+    get:
+      summary: サンプル用のLambda
+      description: サンプル用のLambda
+      parameters:
+        - name: company_id
+          in: query
+          description: CompanyID
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: ???
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeviceResponse'
+      x-amazon-apigateway-integration:
+        httpMethod: post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDevicesLambda.Arn}/invocations
+  /device:
+    #    get:
+    #      summary: サンプル用のLambda
+    #      description: サンプル用のLambda
+    #      parameters:
+    #        - name: company_id
+    #          in: query
+    #          description: CompanyID
+    #          required: true
+    #          schema:
+    #            type: string
+    #        - name: uuid_id
+    #          in: query
+    #          description: UUID
+    #          required: true
+    #          schema:
+    #            type: string
+    #      responses:
+    #        200:
+    #          description: ???
+    #          content:
+    #            application/json:
+    #              schema:
+    #                type: object
+    #                properties:
+    #                  data:
+    #                    type: array
+    #                    items:
+    #                      $ref: '#/components/schemas/DevicesResponse'
+    #      x-amazon-apigateway-integration:
+    #        httpMethod: post
+    #        type: aws_proxy
+    #        uri:
+    #          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDeviceLambda.Arn}/invocations
+    post:
+      summary: サンプル用のLambda
+      description: サンプル用のLambda
+      requestBody:
+        description: 変更内容
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+        required: true
+      responses:
+        200:
+          description: ???
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+      x-amazon-apigateway-integration:
+        httpMethod: post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateDeviceLambda.Arn}/invocations
+    delete:
+      summary: サンプル用の更新Lambda
+      description: サンプル用のLambda
+      requestBody:
+        description: 変更内容
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDeviceRequest'
+        required: true
+      responses:
+        200:
+          description: ???
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeleteDeviceResponse'
+      x-amazon-apigateway-integration:
+        httpMethod: post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateDeviceLambda.Arn}/invocations
+components:
+  schemas:
+    SampleRequest:
+      description: サンプル用のリクエスト
+      required:
+        - company_id
+        - account_id
+        - person_id
+      type: object
+      properties:
+        company_id:
+          description: 企業ID
+          type: string
+        account_id:
+          description: アカウントID
+          type: string
+        person_id:
+          description: PersonID
+          type: string
+    CreateDeviceRequest:
+      description: サンプル用のリクエスト
+      required:
+        - company_id
+        - os
+      type: object
+      properties:
+        company_id:
+          description: 企業ID
+          type: string
+        device_name:
+          description: デバイス管理名
+          type: string
+        os:
+          description: OS
+          type: string
+    DeleteDeviceRequest:
+      description: デバイス削除のリクエスト
+      required:
+        - uuid
+      type: object
+      properties:
+        uuid:
+          description: UUID
+          type: string
+    SampleResponse:
+      description: サンプル用のレスポンス
+      required:
+        - company_id
+        - account_id
+        - person_id
+      type: object
+      properties:
+        company_id:
+          description: 企業ID
+          type: string
+        account_id:
+          description: アカウントID
+          type: string
+        person_id:
+          description: PersonID
+          type: string
+    DeviceResponse:
+      description: サンプル用のレスポンス
+      required:
+        - company_id
+        - uuid
+        - updated_at
+      type: object
+      properties:
+        company_id:
+          description: 企業ID
+          type: string
+        uuid:
+          description: UUID
+          type: string
+        device_name:
+          description: デバイス名
+          type: string
+        os:
+          description: OS
+          type: string
+        updated_at:
+          description: 更新日時
+          type: string
+          format: ???

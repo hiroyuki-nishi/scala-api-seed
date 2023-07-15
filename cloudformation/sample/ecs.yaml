@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Type: String
+Resources:
+  # ------------------------------------------------------------#
+  #  Role
+  # ------------------------------------------------------------#
+  FargateRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: sample-fargate-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - ecs.amazonaws.com
+      ManagedPolicyArns:
+        # 各Lambda毎に必要なポリシーを設定してください
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+
+  # ------------------------------------------------------------#
+  #  ECRCluster
+  # ------------------------------------------------------------#
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      CapacityProviders:
+        - FARGATE_SPOT
+      ClusterName:
+        Fn::Sub: sample-cluster-${EnvName}
+      DefaultCapacityProviderStrategy:
+        - Base: 1
+          CapacityProvider: FARGATE_SPOT
+          Weight: 1
+
+  # ------------------------------------------------------------#
+  #  LogGroup
+  # ------------------------------------------------------------#
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/ecs/sample-fargate-${EnvName}/fargate.log
+
+  # ------------------------------------------------------------#
+  #  TaskDefinition
+  # ------------------------------------------------------------#
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - FargateRole
+      - LogGroup
+    Properties:
+      Family: !Sub sample-fargate-task-${EnvName}
+      ExecutionRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/general-ECSTaskExecutionRolePolicy
+      TaskRoleArn: !Ref FargateRole
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '2048'
+      Memory: '4096'
+      NetworkMode: awsvpc
+      ContainerDefinitions:
+        - Name: sample-fargate
+          Environment:
+            - Name: ENV
+              Value: !Ref EnvName
+            - Name: REGION
+              Value: !Ref AWS::Region
+#          Image: public.ecr.aws/amazonlinux/amazonlinux:latest
+          Image: amazoncorretto:8-alpine-jre
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: fargate
+          MemoryReservation: 1024
+          PortMappings:
+            - ContainerPort: 9010
+
+  # ------------------------------------------------------------#
+  #  ECSService
+  # ------------------------------------------------------------#
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Task
+    Properties:
+      ServiceName: !Sub sample-service-${EnvName}
+      TaskDefinition: !Ref Task
+      DesiredCount: 0
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets:
+            - Fn::ImportValue: general-private-subnet-a
+            - Fn::ImportValue: general-private-subnet-c
+          SecurityGroups:
+            - Fn::ImportValue: general-http-https-security-group

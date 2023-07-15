@@ -1,0 +1,58 @@
+# クロスアカウントでCodeCommitを集中管理したい際に使用するロール
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Type: String
+  EncryptionKey:
+    Type: String
+Resources:
+  # CodeCommit用(非マルチアカウント対応)
+  CodeCommitRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: codecommit-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS:
+                # ここにアクセス許可するクロスアカウントを設定していく(例：相手先のアカウントID)
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+
+  CloudformationRolePolicies:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: codecommit-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource:
+              - !Sub "arn:aws:s3:::artifacts-${EnvName}/*"
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:Decrypt
+            Resource:
+              - !Ref EncryptionKey
+          - Effect: Allow
+            Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Resource: "*"
+      Roles:
+        -
+          Ref: CodeCommitRole
+

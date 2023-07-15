@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  EnvName:
+    Type: String
+Resources:
+  SampleTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "sample-devices-${EnvName}"
+      AttributeDefinitions:
+      - AttributeName: "company_id"
+        AttributeType: "S"
+      - AttributeName: "uuid"
+        AttributeType: "S"
+      KeySchema:
+      - AttributeName: "company_id"
+        KeyType: "HASH"
+      - AttributeName: "uuid"
+        KeyType: "RANGE"
+#      BillingMode: PAY_PER_REQUEST　←オンデマンドの場合これを追加して、ProvisionedThroughputを削除する
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: 1
+       # ポイントタイムリカバリの設定
+#      PointInTimeRecoverySpecification:
+#        PointInTimeRecoveryEnabled: true

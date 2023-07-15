@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  EnvName:
+    Type: String
+  CertificateArn:
+    Type: String
+  DomainName:
+    Type: String
+  HostedZoneId:
+    Type: String
+Conditions:
+  IsProduction: !Equals [!Ref EnvName, prod]
+Globals:
+  Function:
+    Runtime: java11
+    MemorySize: 1524
+    Timeout: 30
+    Environment:
+      Variables:
+        env: !Ref EnvName
+        context: scala-seed # Logger.scalaでトレースログを出力する際に必要なリポジトリ名を指定する
+# CodeUri cannot be included. sam's bug?
+# For Using alias with version
+#    AutoPublishAlias: !Ref EnvName
+Resources:
+#  ########## API Gateway ###########
+  SampleApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub scala-seed-api-${EnvName}
+      StageName: v1
+      OpenApiVersion: 3.0.2
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: !Sub s3://sam-deployment-${EnvName}/sample/swagger.yaml
+#      APIGateway -> Lambdaの際に必要なカスタムオーサライザーやCorsの設定を行ってください。
+#      ※ サンプルのテンプレートでは意図的にコメントアウトしております。
+
+#      Auth:
+#        Authorizers:
+#          LspanAuthLib:
+#            FunctionArn: !Sub arn:aws:lambda:ap-northeast-1:${AWS::AccountId}:function:lspan-auth-lib-authorization-${EnvName}
+#            Identity:
+#              ReauthorizeEvery: 1800
+#        AddDefaultAuthorizerToCorsPreflight: False
+#        DefaultAuthorizer: LspanAuthLib
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      Domain:
+        BasePath:
+          - /v1
+        CertificateArn: !Ref CertificateArn
+        DomainName: !Ref DomainName
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+#        CertificateArn: arn:aws:acm:ap-northeast-1:933351349976:certificate/2d30abce-2d53-4199-bd4f-669d7f052cc6
+#        DomainName: nishiemon.tk
+#        Route53:
+#          HostedZoneId: Z00118232N1DEIEK7D5JW
+      Variables:
+        env: !Ref EnvName
+        region: !Ref AWS::Region
+#      AccessLogSetting:
+#        DestinationArn:
+#          !If
+#          - IsProduction
+#          - !Sub arn:aws:logs:ap-northeast-1:${AWS::AccountId}:log-group:API-Gateway-CustomAccess-Logs_${LogReportApi}/v1
+#          - !Ref AWS::NoValue
+#        Format:
+#          !If
+#          - IsProduction
+#          - '{ "requestId":"$context.requestId", "apiId":"$context.apiId", "resourceId":"$context.resourceId", "stage":"$context.stage", "path":"$context.path", "resourcePath":"$context.resourcePath", "requestTime":"$context.requestTime", "requestTimeEpoch":"$context.requestTimeEpoch", "domainName":"$context.domainName", "protocol":"$context.protocol", "httpMethod":"$context.httpMethod", "status":"$context.status", "responseLength":"$context.responseLength", "identity.sourceIp":"$context.identity.sourceIp", "identity.userAgent":"$context.identity.userAgent", "error.message":"$context.error.message" }​'
+#          - !Ref AWS::NoValue
+#  LambdaPermissionAuthorizer:
+#    Type: AWS::Lambda::Permission
+#    Properties:
+#      Action: lambda:InvokeFunction
+#      FunctionName: !Sub arn:aws:lambda:ap-northeast-1:${AWS::AccountId}:function:lspan-auth-lib-authorization-${EnvName}
+#      Principal: apigateway.amazonaws.com
+
+  SampleApiLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./modules/adapter/presentation/api/device/target/scala-2.13/deviceApi.jar
+      Handler: jp.lanscope.ctxname.presentation.api.xxx.App::handleRequest
+      FunctionName: !Sub scala-seed-api-${EnvName}
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/scala-seed-api-lambda-gray # Lambdaに与えるRole
+      Environment:
+        Variables:
+          application: sample-api # Logger.scalaでトレースログを出力する際に必要なLambdaやアプリ名を指定する
+  SampleApiLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SampleApiLambda
+      Principal: apigateway.amazonaws.com
+
+  GetDevicesLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./modules/adapter/presentation/api/device/target/scala-2.13/deviceApi.jar
+      Handler: jp.device.getdevices.App::handleRequest
+      FunctionName: !Sub scala-seed-api-getdevices-${EnvName}
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/scala-seed-api-lambda-gray # Lambdaに与えるRole
+      Environment:
+        Variables:
+          application: getdevices # Logger.scalaでトレースログを出力する際に必要なLambdaやアプリ名を指定する
+  GetDevicesLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetDevicesLambda
+      Principal: apigateway.amazonaws.com
+
+  CreateDeviceLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./modules/adapter/presentation/api/device/target/scala-2.13/deviceApi.jar
+      Handler: jp.device.createdevice.App::handleRequest
+      FunctionName: !Sub scala-seed-api-createdevice-${EnvName}
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/scala-seed-api-lambda-gray # Lambdaに与えるRole
+      Environment:
+        Variables:
+          application: createdevice # Logger.scalaでトレースログを出力する際に必要なLambdaやアプリ名を指定する
+  CreateDeviceLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateDeviceLambda
+      Principal: apigateway.amazonaws.com

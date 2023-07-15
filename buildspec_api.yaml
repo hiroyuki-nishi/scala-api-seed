@@ -1,0 +1,25 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      java: corretto11
+    commands:
+      - echo "install commands"
+  pre_build:
+    commands:
+      - echo "pre_build commands"
+  build:
+    commands:
+      - echo "build commands"
+      - sbt -mem 2048 'set test in assembly in api := {}' api/clean api/assembly
+      - sam package --s3-bucket sam-deployment-${ENV_NAME} --template-file sam_template_api.yaml --output-template-file sample-api-packaged.yaml --force-upload
+      - aws s3 cp ./swagger.yaml s3://sam-deployment-${ENV_NAME}/sample/swagger.yaml
+#      - sam deploy --stack-name sample-api-${ENV_NAME} --template-file sample-api-packaged.yaml --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides EnvName=${ENV_NAME}
+  #   カスタムドメインを利用する場合は下記をコメントアウトしていただいて利用してください
+      - sam deploy --stack-name sample-api-${ENV_NAME} --template-file sample-api-packaged.yaml --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides EnvName=${ENV_NAME} CertificateArn=${API_CERTIFICATE_ARN} DomainName=${API_DOMAIN_NAME} HostedZoneId=${API_HOSTED_ZONE_ID}
+  post_build:
+    commands:
+      - echo "post_build"
+cache:
+  paths:
+    - '/root/.ivy2/cache/**/*'

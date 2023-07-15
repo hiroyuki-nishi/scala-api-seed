@@ -1,0 +1,511 @@
+# AWSアカウントを作成したい際に開発に必要な各種ロールやS3を作る設定yaml
+# 参考: https://docs.aws.amazon.com/ja_jp/codepipeline/latest/userguide/security-iam.html#how-to-custom-role
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Type: String
+  DomainName:
+    Type: String
+    Description: ex. nishiemon.tk
+Resources:
+  # ------------------------------------------------------------#
+  #  Role
+  # ------------------------------------------------------------#
+  # 全体リソース作成のCloudformation用
+  CloudformationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: cloudformation-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
+  CloudformationRolePolicies:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "cloudformation-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - application-autoscaling:*
+              - rds:*
+              - firehose:*
+              - cloudtrail:*
+              - logs:*
+              - cloudsearch:*
+              - dynamodb:*
+              - athena:*
+              - sqs:*
+              - autoscaling:*
+              - opsworks-cm:*
+              - glue:*
+              - codebuild:*
+              - iam:PassRole
+              - cloudfront:*
+              - route53domains:*
+              - ses:*
+              - opsworks:*
+              - codedeploy:*
+              - kinesis:*
+              - events:*
+              - sns:*
+              - states:*
+              - execute-api:*
+              - apigateway:*
+              - s3:*
+              - cloudformation:*
+              - elasticloadbalancing:*
+              - iam:*
+              - es:*
+              - elasticbeanstalk:*
+              - cloudwatch:*
+              - ssm:*
+              - lambda:*
+              - ecs:*
+              - route53:*
+              - ec2:*
+              - codepipeline:*
+              - elasticmapreduce:*
+              - acm:*
+              - cognito-idp:*
+              - cognito-identity:*
+              - wafv2:*
+              - config:*
+            "Resource": "*"
+      Roles:
+        -
+          Ref: CloudformationRole
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: codepipeline-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+
+  CodePipelineRolePolicies:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "codepipeline-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action: "sts:AssumeRole"
+            Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/codecommit-role
+          - Action:
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketVersioning
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - s3:PutObject
+            Resource:
+              - arn:aws:s3:::codepipeline*
+              - arn:aws:s3:::elasticbeanstalk*
+            Effect: Allow
+          - Action:
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codedeploy:CreateDeployment
+              - codedeploy:GetApplicationRevision
+              - codedeploy:GetDeployment
+              - codedeploy:GetDeploymentConfig
+              - codedeploy:RegisterApplicationRevision
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - elasticbeanstalk:*
+              - ec2:*
+              - elasticloadbalancing:*
+              - autoscaling:*
+              - cloudwatch:*
+              - s3:*
+              - sns:*
+              - cloudformation:*
+              - rds:*
+              - sqs:*
+              - ecs:*
+              - iam:PassRole
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - lambda:InvokeFunction
+              - lambda:ListFunctions
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - opsworks:CreateDeployment
+              - opsworks:DescribeApps
+              - opsworks:DescribeCommands
+              - opsworks:DescribeDeployments
+              - opsworks:DescribeInstances
+              - opsworks:DescribeStacks
+              - opsworks:UpdateApp
+              - opsworks:UpdateStack
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeStacks
+              - cloudformation:UpdateStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:SetStackPolicy
+              - cloudformation:ValidateTemplate
+              - iam:PassRole
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+            Resource: "*"
+            Effect: Allow
+          - Effect: Allow
+            Action:
+              - devicefarm:ListProjects
+              - devicefarm:ListDevicePools
+              - devicefarm:GetRun
+              - devicefarm:GetUpload
+              - devicefarm:CreateUpload
+              - devicefarm:ScheduleRun
+            Resource: "*"
+      Roles:
+        -
+          Ref: CodePipelineRole
+
+  # CodeBuild用
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: codebuild-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+        - arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+  CodeBuildRolePolicies:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "codebuild-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - application-autoscaling:*
+              - rds:*
+              - firehose:*
+              - cloudtrail:*
+              - logs:*
+              - cloudsearch:*
+              - dynamodb:*
+              - athena:*
+              - sqs:*
+              - autoscaling:*
+              - opsworks-cm:*
+              - glue:*
+              - codebuild:*
+              - iam:PassRole
+              - cloudfront:*
+              - route53domains:*
+              - ses:*
+              - opsworks:*
+              - codedeploy:*
+              - kinesis:*
+              - events:*
+              - sns:*
+              - states:*
+              - execute-api:*
+              - apigateway:*
+              - s3:*
+              - cloudformation:*
+              - elasticloadbalancing:*
+              - iam:*
+              - es:*
+              - elasticbeanstalk:*
+              - cloudwatch:*
+              - ssm:*
+              - lambda:*
+              - ecs:*
+              - route53:*
+              - ec2:*
+              - codepipeline:*
+              - elasticmapreduce:*
+              - acm:*
+              - cognito-idp:*
+              - cognito-identity:*
+              - wafv2:*
+              - config:*
+            "Resource": "*"
+      Roles:
+        -
+          Ref: CodeBuildRole
+
+  # APIGatewayのCloudWatchLogsでログを出力するためのロール
+  APIGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: apigateway-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  GeneralECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: general-ECSTaskExecutionRolePolicy
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # ------------------------------------------------------------#
+  #  KMS
+  # ------------------------------------------------------------#
+  # KMS(CodeCommitやCodePipeline用のKMS)
+  DeployKey:
+    Type: AWS::KMS::Key
+    DependsOn:
+      - CodePipelineRole
+      - CodeBuildRole
+    Properties:
+      Description: An example symmetric CMK
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:user/hiroyuki.nishi # 指定したユーザーにだけ特権
+            Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+                - !GetAtt CodePipelineRole.Arn
+                - !GetAtt CodeBuildRole.Arn
+            Action:
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey
+              - kms:GenerateDataKeyWithoutPlaintext
+            Resource: '*'
+          - Sid: Allow attachment of persistent resources
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+                - !GetAtt CodePipelineRole.Arn
+                - !GetAtt CodeBuildRole.Arn
+            Action:
+              - kms:CreateGrant
+              - kms:ListGrants
+              - kms:RevokeGrant
+            Resource: '*'
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+  Alias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline
+      TargetKeyId: !Ref DeployKey
+
+  # S3
+  S3SampleCloudFrontAccessLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub cloudfront-access-logs-${EnvName}
+      LifecycleConfiguration:
+        Rules:
+          - Id: LifeCycleRule
+            Status: Enabled
+            ExpirationInDays: '30'
+  S3SampleArtifacts:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub artifacts-${EnvName}
+      LifecycleConfiguration:
+        Rules:
+          - Id: LifeCycleRule
+            Status: Enabled
+            ExpirationInDays: '30'
+  S3SampleSamDeployment:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub sam-deployment-${EnvName}
+      LifecycleConfiguration:
+        Rules:
+          - Id: LifeCycleRule
+            Status: Enabled
+            ExpirationInDays: '30'
+
+  # Route53(カスタムドメイン)
+  Route53HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+
+  # ------------------------------------------------------------#
+  #  VPC
+  # ------------------------------------------------------------#
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: default
+
+  # ------------------------------------------------------------#
+  #  Subnet
+  # ------------------------------------------------------------#
+  # Private SubnetA Create
+  PrivateSubnetA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: 10.0.10.0/24
+      VpcId: !Ref VPC
+
+  # Private SubnetB Create
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: 10.0.20.0/24
+      VpcId: !Ref VPC
+
+  # ------------------------------------------------------------#
+  #  SecurityGroup
+  # ------------------------------------------------------------#
+  GeneralHttpSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "http,https security-group"
+      GroupName: general-http-https-security-group
+      SecurityGroupIngress:
+        -
+          IpProtocol: tcp
+          FromPort : 80
+          ToPort : 80
+          CidrIp: 0.0.0.0/0
+        -
+          IpProtocol: tcp
+          FromPort : 443
+          ToPort : 443
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
+
+  # AWSコンソール開発者用の管理ポリシー
+#  DeveloperUserPolicies:
+#    Type: AWS::IAM::Policy
+#    Properties:
+#      PolicyName: developer-user-policy
+#      PolicyDocument:
+#        Version: 2012-10-17
+#        Statement:
+#          -
+#            Effect: Allow
+#            Action:
+#              - iam:GetRole
+#              - iam:PassRole
+#              - iam:PutRolePolicy
+#              - iam:DeleteRolePolicy
+#            "Resource": "*"
+
+Outputs:
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: general-private-subnet-a
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetC
+    Export:
+      Name: general-private-subnet-c
+  GeneralHttpSecurityGroup:
+    Value: !Ref GeneralHttpSecurityGroup
+    Export:
+      Name: general-http-https-security-group

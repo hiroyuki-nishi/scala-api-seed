@@ -1,0 +1,8 @@
+.bsp
+.idea
+target
+project/project/
+node_modules/
+tmp/
+cdk.out/
+*.pyc

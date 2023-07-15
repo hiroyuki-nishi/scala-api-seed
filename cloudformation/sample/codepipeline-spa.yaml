@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Type: String
+  EncryptionKey:
+    Type: String
+    Description: ex. arn:aws:kms:...
+Mappings:
+  EnvMap:
+    gray:
+      BucketName: sample.nishiemon.tk
+      BranchName: develop/gray
+Resources:
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub sample-spa-${EnvName}
+      ArtifactStore:
+        Type: S3
+        Location: !Sub artifacts-${EnvName}
+        EncryptionKey:
+          Id: !Ref EncryptionKey
+          Type: KMS
+      RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/codepipeline-role
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: 1
+              RunOrder: 1
+              Configuration:
+                PollForSourceChanges: false
+                RepositoryName: sample-spa
+                BranchName:
+                  Fn::FindInMap:
+                    - EnvMap
+                    - Ref: EnvName
+                    - BranchName
+              InputArtifacts: []
+              OutputArtifacts:
+                - Name: SourceArtifact
+              RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/codecommit-role # TODO: マルチアカウント対応の際は要修正が必要
+        #              RoleArn: !Sub arn:aws:iam::相手先のアカウントIDを指定:role/codecommit-role # TODO: マルチアカウント対応の際は要修正が必要
+        # 例：このCodePiplineがivoryで作られているのなら、相手先のアカウントはgray
+        - Name: Deploy
+          Actions:
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              RunOrder: 1
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              RunOrder: 2
+              Configuration:
+                ProjectName: !Ref CodeBuild
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+  CodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub sample-spa-${EnvName}
+      BadgeEnabled: false
+      ServiceRole: !Sub arn:aws:iam::${AWS::AccountId}:role/codebuild-role
+      TimeoutInMinutes: 60
+      Artifacts:
+        Type: CODEPIPELINE
+      EncryptionKey: !Ref EncryptionKey
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yaml
+      Environment:
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ENV_NAME
+            Value: !Ref EnvName
+            Type: PLAINTEXT
+          - Name: BUCKET_NAME
+            Value:
+              Fn::FindInMap:
+                - EnvMap
+                - Ref: EnvName
+                - BucketName
+            Type: PLAINTEXT

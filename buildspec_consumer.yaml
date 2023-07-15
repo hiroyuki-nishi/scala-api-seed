@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      java: corretto11
+    commands:
+      - echo "install commands"
+  pre_build:
+    commands:
+      - echo "pre_build commands"
+  build:
+    commands:
+      - echo "build commands"
+      - sbt -mem 2048 'set test in assembly in consumer := {}' api/clean consumer/assembly
+      # 1. --output-template-file <テンプレートのyaml>: ファイル名を任意に変更してください。
+      - sam package --s3-bucket lsp-sam-deployment-${ENV_NAME} --template-file sam_template_consumer.yaml --output-template-file sample-consumer-packaged.yaml --force-upload
+      # 2. /<任意のキー名>/swagger.yaml: アップロード先を任意に変更してください。
+      - aws s3 cp ./swagger.yaml s3://lsp-sam-deployment-${ENV_NAME}/sample/swagger.yaml
+cache:
+  paths:
+    - '/root/.ivy2/cache/**/*'

@@ -1,0 +1,27 @@
+# クロスアカウントでCodeCommitを集中管理したい際に使用するロール
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Type: String
+Resources:
+  ApiLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub scala-seed-api-lambda-${EnvName}
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - apigateway.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        # 各Lambda毎に必要なポリシーを設定してください
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      #        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole

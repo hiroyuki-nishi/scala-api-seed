@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  EnvName:
+    Type: String
+Globals:
+ Function:
+   MemorySize: 1024
+   Timeout: 900
+Resources:
+  ConsumerRole:
+    Type: AWS::IAM::Role
+    Properties:
+#  コンテキスト毎の任意のロール名を設定してください
+      RoleName: !Sub scala-seed-consumer-${EnvName}
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+#  各Lambda毎に必要なポリシーを設定してください
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+#        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+#        - arn:aws:iam::aws:policy/AWSLambdaFullAccess
+#        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+#        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      Path: /
+  ScalaSeedConsumerLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: java11
+      CodeUri: ./modules/adapter/presentation/consumer/sampleconsumer/target/scala-2.13/sampleConsumer.jar
+      Handler: jp.lanscope.ctxname.presentation.consumer.xxx.App::handleRequest
+      FunctionName: !Sub scala-seed-consumer-${EnvName}
+      Role: !GetAtt ConsumerRole.Arn
+      Environment:
+        Variables:
+          ENV: !Ref EnvName
