@@ -23,7 +23,7 @@ sh install.sh
 
 ## ディレクトリ構成
 オニオンアーキテクチャを元にディレクトリ構成を作成しております。
-
+```
 ├── modules
 │ ├── adapter
 │ │ ├── infrastructure [インフラストラクチャ層]
@@ -45,13 +45,8 @@ sh install.sh
 ├── README.md
 ├── sam_template_api.yml [APIのSAMデプロイ定義]
 └── sam_template_consumer.yml [コンシューマーのSAMデプロイ定義]
+```
 
-# TODO: nishi テスト環境構築方法を書く
-# TODO: APIを作成するときに各.yamlのどこを変更する必要があるか書く
-# TODO: Consumerを作成するときに各.yamlのどこを変更する必要があるか書く
-# TODO: 共通日付クラスを作成する
-# TODO: Consumerのスキップクラスを記録メディアから持ってくる
-# TODO: Apiのバリデーションクラスを記録メディアから持ってくる
 ## テスト
 ```
 docker-compose up -d
